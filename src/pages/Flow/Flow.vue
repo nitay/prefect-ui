@@ -61,7 +61,6 @@ export default {
   data() {
     return {
       loadingKey: 0,
-      tab: this.getTab(),
       tabs: [
         {
           name: 'Overview',
@@ -71,12 +70,7 @@ export default {
         {
           name: 'ReadMe',
           target: 'description',
-          icon: 'far fa-file-code',
-          badgeText: 'New!',
-          cardText:
-            'A Flow ReadMe can now be added in the UI. For more information check out the',
-          cardLink: 'https://docs.prefect.io/orchestration/ui/flow.html#readme',
-          cardLinkText: 'UI Flow Docs'
+          icon: 'far fa-file-code'
         },
         {
           name: 'Tasks',
@@ -98,11 +92,6 @@ export default {
           target: 'automations',
           icon: 'fad fa-random'
         },
-        // {
-        //   name: 'Versions',
-        //   target: 'versions',
-        //   icon: 'loop'
-        // },
         {
           name: 'Run',
           target: 'run',
@@ -157,60 +146,49 @@ export default {
       versions.unshift({ text: 'All', value: null })
 
       return versions
+    },
+    titleBarMaxWidth() {
+      if (this.$vuetify.breakpoint.lgAndUp) {
+        return '60vw'
+      } else if (this.$vuetify.breakpoint.mdAndDown) {
+        return '40vw'
+      }
+      return '30vw'
+    },
+    tab: {
+      get(){
+      const keys = Object.keys(this.$route.query ?? {})
+      if (keys.length > 0 && this.tabs?.find(tab => tab.target == keys[0])) {
+        return keys[0]
+      }
+
+      return 'overview'
+      },
+      set(value){
+        this.$router.replace({query: { [value]: null }})
+      }
+    },
+    flowTabs() {
+      return this.isCloud
+        ? this.tabs
+        : this.tabs.filter(tab => tab.name !== 'Automations')
     }
   },
   watch: {
-    $route() {
-      this.tab = this.getTab()
-
-      if (this.$route.name == 'flow') {
+    'this.$route.name'(val){
+      if (val == 'flow') {
         this.activateFlow(this.$route.params.id)
-      }
-    },
-    tab(val) {
-      let query = { ...this.$route.query }
-      switch (val) {
-        case 'schematic':
-          query = 'schematic'
-          break
-        case 'runs':
-          query = 'runs'
-          break
-        case 'tasks':
-          query = 'tasks'
-          break
-        case 'description':
-          query = 'description'
-          break
-        case 'versions':
-          query = 'versions'
-          break
-        case 'automations':
-          query = 'automations'
-          break
-        case 'run':
-          query = 'run'
-          break
-        case 'settings':
-          query = 'settings'
-          break
-        default:
-          break
       }
     }
   },
   async beforeMount() {
-    await this.activateFlow(this.$route.params.id)
-    this.tab = this.getTab()
+  await this.activateFlow(this.$route.params.id)
   },
   methods: {
     ...mapActions('data', ['activateFlow', 'resetActiveData']),
-    getTab() {
-      if (Object.keys(this.$route.query).length != 0) {
-        let target = Object.keys(this.$route.query)[0]
-        if (this.tabs?.find(tab => tab.target == target)) return target
-      }
-      return 'overview'
+    onIntersect([entry]) {
+      this.$apollo.queries.flowGroup.skip = !entry.isIntersecting
+      this.$apollo.queries.lastFlowRun.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -246,7 +224,7 @@ export default {
 </script>
 
 <template>
-  <v-sheet color="appBackground">
+  <v-sheet v-intersect="{ handler: onIntersect }" color="appBackground">
     <SubPageNav icon="pi-flow" page-type="Flow">
       <span
         slot="page-title"
@@ -261,7 +239,14 @@ export default {
             : $vuetify.breakpoint.smAndDown && { display: 'inline' }
         "
       >
-        <div v-if="flowGroup">
+        <div
+          v-if="flowGroup"
+          class="text-truncate minTitleWidth"
+          :style="{
+            width: selectedFlow.name.length + 'ch',
+            maxWidth: titleBarMaxWidth
+          }"
+        >
           {{ selectedFlow.name }}
           <span
             v-if="selectedFlow.archived"
@@ -314,7 +299,7 @@ export default {
         :versions="versions"
       />
       <span slot="tabs" style="width: 100%;"
-        ><NavTabBar :tabs="tabs" v-if="flowGroup" page="flow"
+        ><NavTabBar :tabs="flowTabs" v-if="flowGroup" page="flow"
       /></span>
     </SubPageNav>
 
@@ -322,7 +307,6 @@ export default {
       v-model="tab"
       v-if="flowGroup"
       class="px-6 mx-auto tabs-border-bottom tab-full-height"
-      style="max-width: 1440px;"
       :style="{
         'padding-top': $vuetify.breakpoint.smOnly ? '80px' : '130px'
       }"
@@ -529,3 +513,9 @@ export default {
     </v-bottom-navigation>
   </v-sheet>
 </template>
+
+<style>
+.minTitleWidth {
+  min-width: 20vw;
+}
+</style>

@@ -58,6 +58,11 @@ export default {
       }
     }
   },
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.failures.skip = !entry.isIntersecting
+    }
+  },
   apollo: {
     failures: {
       query: require('@/graphql/Dashboard/flow-failures.gql'),
@@ -87,7 +92,12 @@ export default {
 </script>
 
 <template>
-  <v-card class="py-2 position-relative" tile style="height: 100%;">
+  <v-card
+    v-intersect="{ handler: onIntersect }"
+    class="py-2 position-relative"
+    tile
+    style="height: 100%;"
+  >
     <v-system-bar :color="stateColor" :height="5" absolute>
       <!-- We should include a state icon here when we've got those -->
       <!-- <v-icon>{{ flow.flow_runs[0].state }}</v-icon> -->
@@ -103,6 +113,7 @@ export default {
         >
           <div slot="action" v-on="on">
             <v-select
+              data-public
               v-model="selectedDateFilter"
               class="time-interval-picker"
               :items="shortDateFilters"
@@ -123,7 +134,7 @@ export default {
         </CardTitle>
       </template>
       <span>
-        Filter by when flows were last updated
+        Filter on flow run scheduled start time
       </span>
     </v-tooltip>
 

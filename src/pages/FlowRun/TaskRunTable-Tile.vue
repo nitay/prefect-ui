@@ -4,7 +4,9 @@ import moment from 'moment-timezone'
 import DurationSpan from '@/components/DurationSpan'
 import ResumeButton from '@/components/ResumeButton'
 import { formatTime } from '@/mixins/formatTimeMixin'
-import { FINISHED_STATES, STATE_NAMES } from '@/utils/states'
+import { STATE_NAMES } from '@/utils/states'
+import { calculateDuration } from '@/utils/states'
+
 export default {
   components: {
     CardTitle,
@@ -38,20 +40,20 @@ export default {
           text: 'Task',
           value: 'task.name',
           sortable: false,
-          width: '27.5%'
+          width: '37.5%'
         },
         {
           text: 'Start Time',
           value: 'start_time',
           align: 'start',
-          width: '20%'
+          width: '15%'
         },
         { text: 'End Time', value: 'end_time', align: 'start', width: '15%' },
         {
           text: 'Duration',
           value: 'duration',
           align: 'end',
-          width: '17.5%',
+          width: '15.5%',
           sortable: false
         },
         { text: 'State', value: 'state', align: 'end', width: '10%' },
@@ -98,9 +100,11 @@ export default {
         return true
       }
     },
-    isFinished(state) {
-      return FINISHED_STATES.includes(state)
-    }
+    onIntersect([entry]) {
+      this.$apollo.queries.flowRun.skip = !entry.isIntersecting
+      this.$apollo.queries.taskRunsCount.skip = !entry.isIntersecting
+    },
+    calculateDuration
   },
   apollo: {
     flowRun: {
@@ -143,7 +147,7 @@ export default {
 </script>
 
 <template>
-  <v-card class="pa-2" tile>
+  <v-card v-intersect="{ handler: onIntersect }" class="pa-2" tile>
     <CardTitle icon="pi-task-run">
       <div
         :slot="$vuetify.breakpoint.lgAndUp && 'title'"
@@ -158,6 +162,7 @@ export default {
       >
         <v-select
           v-model="state"
+          data-public
           outlined
           class="state-filter"
           :style="[
@@ -197,7 +202,7 @@ export default {
           solo
           prepend-inner-icon="search"
           hide-details
-          placeholder="Search by Task or Run Name"
+          placeholder="Search by Task Name"
           style="min-width: 210px;"
         >
         </v-text-field>
@@ -279,11 +284,7 @@ export default {
             v-if="item.start_time"
             :start-time="item.start_time"
             :end-time="
-              item.end_time
-                ? item.end_time
-                : isFinished(item.state)
-                ? item.start_time
-                : null
+              calculateDuration(item.start_time, item.end_time, item.state)
             "
           />
           <span v-else>...</span>

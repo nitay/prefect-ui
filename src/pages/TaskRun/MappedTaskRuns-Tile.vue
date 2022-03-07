@@ -2,6 +2,7 @@
 import CardTitle from '@/components/Card-Title'
 import DurationSpan from '@/components/DurationSpan'
 import { formatTime } from '@/mixins/formatTimeMixin'
+import { calculateDuration } from '@/utils/states'
 
 export default {
   components: {
@@ -75,7 +76,13 @@ export default {
       return `%${this.searchTerm}%`
     }
   },
-  methods: {},
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.taskRuns.skip = !entry.isIntersecting
+      this.$apollo.queries.taskRunsCount.skip = !entry.isIntersecting
+    },
+    calculateDuration
+  },
   apollo: {
     taskRuns: {
       query: require('@/graphql/TaskRun/table-mapped-task-runs.gql'),
@@ -171,7 +178,7 @@ export default {
 </script>
 
 <template>
-  <v-card class="pa-2 mt-2" tile>
+  <v-card v-intersect="{ handler: onIntersect }" class="pa-2 mt-2" tile>
     <CardTitle :title="tableTitle" icon="pi-task-run">
       <v-text-field
         slot="action"
@@ -274,7 +281,9 @@ export default {
           <DurationSpan
             v-if="item.start_time"
             :start-time="item.start_time"
-            :end-time="item.end_time"
+            :end-time="
+              calculateDuration(item.start_time, item.end_time, item.state)
+            "
           />
           <span v-else>...</span>
         </template>

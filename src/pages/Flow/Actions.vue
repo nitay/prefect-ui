@@ -77,9 +77,9 @@ export default {
     }
   },
   watch: {
-    $route(val) {
-      if (this.selectedVersion == val.query?.version) return
-      this.selectedVersion = +val.query.version || null
+    '$route.query.version'(val) {
+      if (this.selectedVersion == val) return
+      this.selectedVersion = +val || null
     }
   },
   mounted() {
@@ -259,6 +259,7 @@ export default {
   >
     <div class="version-selector">
       <v-select
+        data-public
         :value.sync="selectedVersion"
         :items="versions"
         dense

@@ -1,4 +1,5 @@
 <script>
+import { mapGetters } from 'vuex'
 import TutorialBanner from '@/components/TutorialBanner'
 
 export default {
@@ -22,12 +23,42 @@ export default {
   },
   data() {
     return {
-      pageScrolled: false
+      pageScrolled: false,
+      unsubscribeFlows: null,
+      unwatchFlows: null
     }
+  },
+  computed: {
+    ...mapGetters('data', ['flows']),
+    shouldShowTutorialBanner() {
+      return (
+        !this.hideBanners &&
+        !this.$vuetify.breakpoint.smAndDown &&
+        !this.pageScrolled &&
+        this.flows != null &&
+        this.flows.length === 0
+      )
+    }
+  },
+  async created() {
+    this.unsubscribeFlows = await this.$store.dispatch(
+      'polling/subscribe',
+      'flows'
+    )
+    this.unwatchFlows = this.$watch('flows', this.flowsChanged)
+  },
+  beforeDestroy() {
+    this.unsubscribeFlows()
   },
   methods: {
     scrolled() {
       this.pageScrolled = window.scrollY > 30
+    },
+    flowsChanged(flows) {
+      if (flows.length > 0) {
+        this.unsubscribeFlows()
+        this.unwatchFlows()
+      }
     }
   }
 }
@@ -35,7 +66,7 @@ export default {
 
 <template>
   <div>
-    <TutorialBanner v-if="!hideBanners" :page-scroll="pageScrolled" />
+    <TutorialBanner v-if="shouldShowTutorialBanner" />
     <v-toolbar
       v-scroll="scrolled"
       :elevation="
@@ -57,8 +88,7 @@ export default {
         :class="{
           'justify-center': $vuetify.breakpoint.smAndDown
         }"
-        style="height: 64px;
-      max-width: 1440px;"
+        style="height: 64px;"
       >
         <v-col :sm="$slots['page-actions'] ? 6 : 12" class="d-flex align-end">
           <div class="mr-2">

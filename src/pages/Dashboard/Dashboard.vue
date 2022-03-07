@@ -40,8 +40,7 @@ const cloudTabs = [
   {
     name: 'Automations',
     target: 'automations',
-    icon: 'fad fa-random',
-    badgeText: 'New!'
+    icon: 'fad fa-random'
   }
 ]
 
@@ -104,8 +103,7 @@ export default {
       loadedTiles: 0,
       numberOfTiles: 10,
       projectId: this.$route.params.id,
-      refreshTimeout: null,
-      tab: this.getTab()
+      refreshTimeout: null
     }
   },
   computed: {
@@ -122,6 +120,12 @@ export default {
     },
     includeProjects() {
       return this.tab != 'automations' && this.tab != 'calendar'
+    },
+    tab() {
+      if ('flows' in this.$route.query) return 'flows'
+      if ('calendar' in this.$route.query) return 'calendar'
+      if ('automations' in this.$route.query) return 'automations'
+      return 'overview'
     }
   },
   watch: {
@@ -132,9 +136,6 @@ export default {
         this.refresh()
         clearTimeout(this.refreshTimeout)
       }, 3000)
-    },
-    $route() {
-      this.tab = this.getTab()
     },
     'tenant.id'(val, old) {
       if (val && val !== old) {
@@ -170,12 +171,6 @@ export default {
     handleProjectSelect(val) {
       this.projectId = val
       if (this.projectId?.length > 0) this.activateProject(this.projectId)
-    },
-    getTab() {
-      if ('flows' in this.$route.query) return 'flows'
-      if ('calendar' in this.$route.query) return 'calendar'
-      if ('automations' in this.$route.query) return 'automations'
-      return 'overview'
     },
     refresh() {
       let start
@@ -276,9 +271,6 @@ export default {
     <v-tabs-items
       v-model="tab"
       class="px-6 mx-auto tabs-border-bottom tab-full-height"
-      style="
-        max-width: 1440px;
-      "
       :style="{
         'padding-top': $vuetify.breakpoint.smOnly ? '80px' : '130px'
       }"
@@ -435,7 +427,11 @@ export default {
     </v-tabs-items>
 
     <v-bottom-navigation v-if="$vuetify.breakpoint.smAndDown" app fixed>
-      <v-btn v-for="tb in tabs" :key="tb.target" @click="tab = tb.target">
+      <v-btn
+        v-for="tb in tabs"
+        :key="tb.target"
+        @click="$router.replace({ query: { [tb.target]: null } })"
+      >
         {{ tb.name }}
         <v-icon>{{ tb.icon }}</v-icon>
       </v-btn>

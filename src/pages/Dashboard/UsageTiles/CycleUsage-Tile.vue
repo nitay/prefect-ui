@@ -27,7 +27,7 @@ export default {
     },
     freeUsage() {
       if (isNaN(this.usage)) return null
-      const percentage = this.usage / 10000
+      const percentage = this.usage / 20000
       return percentage > 1 ? 100 : (percentage * 100).toFixed()
     },
     usageLoading() {
@@ -46,6 +46,11 @@ export default {
           this.freeUsage >= 80 && this.freeUsage < 100,
         'primary--text': true
       }
+    }
+  },
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.usage.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -86,6 +91,7 @@ export default {
 
 <template>
   <v-card
+    v-intersect="{ handler: onIntersect }"
     class="position-relative d-flex flex-column justify-space-between"
     style="height: 100%;"
     tile
@@ -109,7 +115,7 @@ export default {
           <span>
             {{ !usage ? 0 : usage.toLocaleString()
             }}<span v-if="planType('FREE')" class="text-h5 ml-1"
-              >/10,000</span
+              >/20,000</span
             ></span
           >
         </v-skeleton-loader>

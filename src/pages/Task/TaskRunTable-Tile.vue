@@ -3,6 +3,7 @@ import CardTitle from '@/components/Card-Title'
 import { roundedOneAgo } from '@/utils/dateTime'
 import DurationSpan from '@/components/DurationSpan'
 import { formatTime } from '@/mixins/formatTimeMixin'
+import { calculateDuration } from '@/utils/states'
 
 export default {
   components: {
@@ -29,23 +30,23 @@ export default {
           text: 'Flow Run',
           value: 'flow_run',
           sortable: false,
-          width: '20%'
+          width: '30%'
         },
         {
           text: 'Start Time',
           value: 'start_time',
           align: 'start',
-          width: '20%'
+          width: '15%'
         },
-        { text: 'End Time', value: 'end_time', align: 'start', width: '20%' },
+        { text: 'End Time', value: 'end_time', align: 'start', width: '15%' },
         {
           text: 'Duration',
           value: 'duration',
           align: 'end',
-          width: '15%',
+          width: '10%',
           sortable: false
         },
-        { text: 'State', value: 'state', align: 'end', width: '15%' }
+        { text: 'State', value: 'state', align: 'end', width: '10%' }
       ],
       itemsPerPage: 15,
       page: 1,
@@ -71,7 +72,13 @@ export default {
       return `%${this.searchTerm}%`
     }
   },
-  methods: {},
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.task.skip = !entry.isIntersecting
+      this.$apollo.queries.taskRunsCount.skip = !entry.isIntersecting
+    },
+    calculateDuration
+  },
   apollo: {
     task: {
       query: require('@/graphql/Task/table-task-runs.gql'),
@@ -111,12 +118,13 @@ export default {
 </script>
 
 <template>
-  <v-card class="pa-2 mt-2" tile>
+  <v-card v-intersect="{ handler: onIntersect }" class="pa-2 mt-2" tile>
     <v-tooltip top>
       <template #activator="{ on }">
         <CardTitle :title="tableTitle" icon="pi-task-run">
           <div slot="action" v-on="on">
             <v-select
+              data-public
               v-model="selectedDateFilter"
               class="time-interval-picker"
               :items="dateFilters"
@@ -200,7 +208,9 @@ export default {
           <DurationSpan
             v-if="item.start_time"
             :start-time="item.start_time"
-            :end-time="item.end_time"
+            :end-time="
+              calculateDuration(item.start_time, item.end_time, item.state)
+            "
           />
           <span v-else>...</span>
         </template>

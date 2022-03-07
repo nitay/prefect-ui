@@ -38,10 +38,16 @@ export default {
     }
   },
   data() {
+    const tabs = {
+      overview: 0,
+      details: 1
+    }
+
     return {
       paramInfoOpen: false,
       copiedText: {},
-      tab: 'overview',
+      tab: tabs.overview,
+      tabs,
       //labels
       newLabel: '',
       labelMenuOpen: false,
@@ -71,29 +77,31 @@ export default {
         }, {})
     },
     runConfigDisplayFields() {
-      if (!this.flow.run_config || !this.flow.run_config.type) return []
+      if (!this.flow.run_config?.type) return []
 
-      let fields = ['type']
-      if (this.flow.run_config.type == 'LocalRun') {
-        fields.push('working_dir')
-      } else if (this.flow.run_config.type == 'DockerRun') {
-        fields.push('image')
-      } else if (this.flow.run_config.type == 'KubernetesRun') {
-        fields.push(
+      const typeFieldMap = {
+        LocalRun: ['working_dir'],
+        DockerRun: ['image'],
+        KubernetesRun: [
           'image',
           'job_template_path',
           'cpu_request',
           'cpu_limit',
           'memory_request',
           'memory_limit'
-        )
-      } else if (this.flow.run_config.type == 'ECSRun') {
-        fields.push('image', 'task_definition_path', 'cpu', 'memory')
+        ],
+        ECSRun: ['image', 'task_definition_path', 'cpu', 'memory'],
+        UniversalRun: []
       }
-      return fields.filter(field => this.flow.run_config[field] != null)
+      const typeFields = typeFieldMap[this.flow.run_config.type] || []
+      return [
+        'type',
+        ...typeFields.filter(field => this.flow.run_config[field] != null)
+      ]
     },
     flows() {
-      if (!this.flow.storage || !this.flow.storage.flows) return null
+      if (!this.flow.storage?.flows) return null
+
       return this.flow.storage.flows
     },
     hasUser() {
@@ -138,65 +146,37 @@ export default {
     </v-system-bar>
     <CardTitle :icon="flow.archived ? 'archive' : 'pi-flow'">
       <v-row slot="title" no-gutters class="d-flex align-center">
-        <v-col cols="8">
+        <v-col cols="10">
           <div class="text-truncate pb-1">
             {{ flow.name }}
           </div>
           <div
-            class="grey--text text--darken-2 text-caption position-absolute font-weight-medium"
+            class="utilGrayDark--text text-caption position-absolute font-weight-medium"
             style="bottom: 2px;"
           >
             {{ `Version ${flow.version}` }}
           </div>
         </v-col>
       </v-row>
-
-      <div slot="action" class="d-flex flex-column align-end">
-        <v-btn
-          depressed
-          small
-          tile
-          icon
-          class="button-transition w-100 d-flex justify-end"
-          :color="tab == 'overview' ? 'primary' : ''"
-          :style="{
-            'border-right': `3px solid ${
-              tab == 'overview' ? 'var(--v-primary-base)' : 'transparent'
-            }`,
-            'box-sizing': 'content-box',
-            'min-width': '100px'
-          }"
-          @click="tab = 'overview'"
-        >
-          Overview
-          <v-icon small>calendar_view_day</v-icon>
-        </v-btn>
-
-        <v-btn
-          depressed
-          small
-          tile
-          icon
-          class="button-transition w-100 d-flex justify-end"
-          :color="tab == 'details' ? 'primary' : ''"
-          :style="{
-            'border-right': `3px solid ${
-              tab == 'details' ? 'var(--v-primary-base)' : 'transparent'
-            }`,
-            'box-sizing': 'content-box',
-            'min-width': '100px'
-          }"
-          @click="tab = 'details'"
-        >
-          Details
-          <v-icon small>notes</v-icon>
-        </v-btn>
-      </div>
     </CardTitle>
 
-    <v-card-text class="pa-0">
-      <v-fade-transition hide-on-leave>
-        <v-list v-if="tab == 'overview'" class="card-content">
+    <v-tabs
+      v-model="tab"
+      tabs-border-bottom
+      color="primary"
+      class="flex-grow-0"
+    >
+      <v-tab :key="tabs.overview" data-cy="details-tile-overview">
+        Overview
+      </v-tab>
+      <v-tab :key="tabs.details" data-cy="details-tile-detail">
+        Details
+      </v-tab>
+    </v-tabs>
+
+    <v-tabs-items v-model="tab" class="flex-grow-1">
+      <v-tab-item>
+        <v-list class="card-content">
           <v-list-item dense>
             <v-list-item-content>
               <v-list-item-subtitle class="text-caption">
@@ -213,6 +193,8 @@ export default {
               </div>
             </v-list-item-content>
           </v-list-item>
+
+          <LabelEdit :flow="flow" :flow-group="flowGroup" />
 
           <v-list-item v-if="flow.core_version" dense>
             <v-list-item-content>
@@ -237,16 +219,13 @@ export default {
               </div>
             </v-list-item-content>
           </v-list-item>
-
-          <LabelEdit :flow="flow" :flow-group="flowGroup" />
         </v-list>
-      </v-fade-transition>
-
-      <v-fade-transition hide-on-leave>
-        <v-list v-if="tab == 'details'" class="card-content">
+      </v-tab-item>
+      <v-tab-item>
+        <v-list class="card-content">
           <v-list-item dense>
             <v-list-item-content>
-              <v-list-item-subtitle class="grey--text text--darken-3">
+              <v-list-item-subtitle class="utilGrayDark--text">
                 General
               </v-list-item-subtitle>
               <v-divider style="max-width: 50%;" />
@@ -353,7 +332,7 @@ export default {
 
           <v-list-item dense>
             <v-list-item-content v-if="flow.run_config">
-              <v-list-item-subtitle class="grey--text text--darken-3">
+              <v-list-item-subtitle class="utilGrayDark--text">
                 Run Config
               </v-list-item-subtitle>
               <v-divider style="max-width: 50%;" />
@@ -376,7 +355,7 @@ export default {
               </v-list-item-subtitle>
             </v-list-item-content>
             <v-list-item-content v-else>
-              <v-list-item-subtitle class="grey--text text--darken-3">
+              <v-list-item-subtitle class="utilGrayDark--text">
                 Environment
               </v-list-item-subtitle>
               <v-divider style="max-width: 50%;" />
@@ -404,7 +383,7 @@ export default {
 
           <v-list-item v-if="flow.storage" dense class="mt-2">
             <v-list-item-content>
-              <v-list-item-subtitle class="grey--text text--darken-3">
+              <v-list-item-subtitle class="utilGrayDArk--text">
                 Storage
               </v-list-item-subtitle>
               <v-divider style="max-width: 50%;" />
@@ -458,7 +437,7 @@ export default {
 
           <v-list-item v-if="flows" dense class="mt-2">
             <v-list-item-content>
-              <v-list-item-subtitle class="grey--text text--darken-3">
+              <v-list-item-subtitle class="utilGrayDark--text">
                 Flow Locations
               </v-list-item-subtitle>
               <v-divider style="max-width: 50%;" />
@@ -486,7 +465,7 @@ export default {
             two-line
           >
             <v-list-item-content>
-              <v-list-item-subtitle class="grey--text text--darken-3">
+              <v-list-item-subtitle class="utilGrayDark--text">
                 Parameters
                 <v-menu
                   v-model="paramInfoOpen"
@@ -549,8 +528,8 @@ export default {
             </v-list-item-content>
           </v-list-item>
         </v-list>
-      </v-fade-transition>
-    </v-card-text>
+      </v-tab-item>
+    </v-tabs-items>
   </v-card>
 </template>
 
@@ -566,7 +545,7 @@ export default {
 }
 
 .card-content {
-  max-height: 254px;
+  max-height: calc(254px - var(--v-tabs-height));
   overflow-y: auto;
 }
 

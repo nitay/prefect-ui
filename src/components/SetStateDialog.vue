@@ -15,6 +15,12 @@ export default {
       return !this.hasPermission('update', 'run')
     }
   },
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.taskRunIds.skip =
+        !this.flowRun || !entry.isIntersecting
+    }
+  },
   apollo: {
     taskRunIds: {
       query: require('@/graphql/FlowRun/task-run-ids.gql'),
@@ -25,9 +31,6 @@ export default {
           childMapIndex: null
         }
       },
-      skip() {
-        return !this.flowRun
-      },
       pollInterval: 10000,
       update: data => data.task_run
     }
@@ -36,7 +39,7 @@ export default {
 </script>
 
 <template>
-  <div v-if="activeButton">
+  <div v-if="activeButton" v-intersect="{ handler: onIntersect }">
     <v-dialog v-model="setStateDialog" max-width="600" @click:outside="reset">
       <template #activator="{ on: dialog }">
         <v-tooltip bottom>
@@ -77,6 +80,7 @@ export default {
             >
           </v-card-title>
           <v-select
+            data-public
             v-model="selectedState"
             outlined
             :menu-props="{ offsetY: true }"

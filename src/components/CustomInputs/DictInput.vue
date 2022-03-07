@@ -48,6 +48,11 @@ export default {
       type: Array,
       required: false,
       default: () => []
+    },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false
     }
   },
   data() {
@@ -70,6 +75,8 @@ export default {
     value() {
       const dict = {}
       this.keys.forEach((k, i) => {
+        // Ignore null key/val pairs
+        if (k == null && this.values[i] == null) return
         if (
           !this.includeCheckbox ||
           (this.json && Object.keys(JSON.parse(this.jsonInput)).includes(k)) ||
@@ -245,6 +252,7 @@ export default {
       </v-btn>
 
       <v-switch
+        v-if="!disabled"
         v-model="json"
         inset
         label="JSON"
@@ -287,6 +295,7 @@ export default {
               class="text-body-1"
               hide-details
               outlined
+              :disabled="disabled"
               dense
               :placeholder="keyLabel"
               :readonly="disabledKeys.includes(keys[i])"
@@ -298,6 +307,7 @@ export default {
               v-model="values[i]"
               class="text-body-1"
               hide-details
+              :disabled="disabled"
               outlined
               dense
               :placeholder="

@@ -74,7 +74,15 @@ export default {
   computed: {
     ...mapGetters('tenant', ['tenant']),
     ...mapGetters('user', ['user']),
-    ...mapGetters('license', ['license', 'hasPermission', 'allowedUsers']),
+    ...mapGetters('license', [
+      'license',
+      'hasPermission',
+      'allowedUsers',
+      'planType'
+    ]),
+    canUpgradeUsers() {
+      return this.planType('FREE') || this.planType('STARTER')
+    },
     totalAllowedUsers() {
       return this.allowedUsers() ?? Infinity
     },
@@ -143,6 +151,10 @@ export default {
   },
   methods: {
     ...mapActions('alert', ['setAlert']),
+    handleInviteDialog() {
+      this.roleInput = this.roles?.find(r => r.name == 'TENANT_ADMIN').id
+      this.dialogInviteUser = true
+    },
     handleAlert(type, message) {
       this.setAlert({
         alertShow: true,
@@ -203,11 +215,13 @@ export default {
         this.inviteSignal++
         this.dialogInviteUser = false
         this.inviteEmailInput = null
+        this.roleInput = this.roles.find(r => r.name == 'TENANT_ADMIN').id
         this.tab = 'pending'
       } else if (res?.errors) {
         this.handleAlert('error', res?.errors[0]?.message)
         this.dialogInviteUser = false
         this.inviteEmailInput = null
+        this.roleInput = this.roles.find(r => r.name == 'TENANT_ADMIN').id
       }
       this.isInvitingUser = false
     },
@@ -230,7 +244,6 @@ export default {
       pollInterval: 10000,
       update(data) {
         if (!data) return
-        this.roleInput = data.auth_role?.find(r => r.name == 'TENANT_ADMIN').id
         return data.auth_role
       }
     }
@@ -239,7 +252,7 @@ export default {
 </script>
 
 <template>
-  <ManagementLayout :show="!isLoadingMembersTable" control-show>
+  <ManagementLayout>
     <template #title>Team Members</template>
 
     <template #subtitle>
@@ -253,12 +266,12 @@ export default {
 
     <template v-if="hasPermission('create', 'membership-invitation')" #cta>
       <v-btn
-        :disabled="insufficientUsers"
+        :disabled="insufficientUsers || !roles"
         color="primary"
         class="white--text"
         large
         data-cy="invite-member"
-        @click="dialogInviteUser = true"
+        @click="handleInviteDialog"
       >
         <v-icon left>
           person_add
@@ -278,9 +291,14 @@ export default {
         icon="lock"
         max-width="600"
       >
-        <p>
-          Your team has no users available. You can add more from the
-          <router-link :to="'/team/account'"> Account Page</router-link>
+        <p v-if="canUpgradeUsers">
+          Your team has no users available;
+          <router-link :to="'/plans'">upgrade your plan</router-link> to get
+          more users and access to more features!
+        </p>
+        <p v-else>
+          Your team has no users available. Contact sales@prefect.io to add
+          more.
         </p>
       </v-alert>
     </template>
@@ -384,6 +402,7 @@ export default {
           :search="searchInput"
           :tenant="tenant"
           :user="user"
+          :loading="isLoadingMembersTable"
           :refetch-signal="membersSignal"
           @load-end="handleUpdateUsers($event)"
           @successful-action="handleAlert('success', $event)"
@@ -455,6 +474,7 @@ export default {
           validate-on-blur
         />
         <v-select
+          data-public
           v-model="roleInput"
           outlined
           :menu-props="{ offsetY: true }"

@@ -57,7 +57,6 @@ export default {
       error: false,
       flowRunNameLoading: false,
       loadingKey: 0,
-      tab: this.getTab(),
       tabs: [
         {
           name: 'Overview',
@@ -77,13 +76,7 @@ export default {
         {
           name: 'Artifacts',
           target: 'artifacts',
-          icon: 'fas fa-fingerprint',
-          badgeText: 'Beta',
-          cardText:
-            'The Artifacts API is a beta feature currently under development. Task mapping with artifacts may have unexpected results... for more information on artifacts, check out the',
-          cardLink:
-            'https://docs.prefect.io/api/latest/artifacts/artifacts.html#artifacts',
-          cardLinkText: 'Artifacts API Docs'
+          icon: 'fas fa-fingerprint'
         }
       ]
     }
@@ -99,44 +92,34 @@ export default {
     },
     loading() {
       return this.loadingKey > 0
-    }
-  },
-  watch: {
-    $route() {
-      this.tab = this.getTab()
     },
-    tab(val) {
-      let query = { ...this.$route.query }
-      switch (val) {
-        case 'schematic':
-          query = 'schematic'
-          break
-        case 'logs':
-          query = 'logId'
-          break
-        case 'chart':
-          query = { chart: '' }
-          break
-        case 'artifacts':
-          /* eslint-disable-next-line */
-          query = 'artifacts'
-          break
-        default:
-          break
+    flowRunNameLength() {
+      return this.flowRun?.name?.length
+    },
+    titleBarMaxWidth() {
+      if (this.$vuetify.breakpoint.lgAndUp) {
+        return '70vw'
+      } else if (this.$vuetify.breakpoint.mdAndDown) {
+        return '40vw'
+      }
+      return '30vw'
+    },
+    tab: {
+      get() {
+        const keys = Object.keys(this.$route.query ?? {})
+        if (keys.length > 0 && this.tabs?.find(tab => tab.target == keys[0])) {
+          return keys[0]
+        }
+
+        return 'overview'
+      },
+      set(value) {
+        this.$router.replace({ query: { [value]: null } })
       }
     }
-  },
-  beforeMount() {
-    this.tab = this.getTab()
   },
   methods: {
     ...mapActions('alert', ['setAlert']),
-    getTab() {
-      if (Object.keys(this.$route.query).length != 0) {
-        return Object.keys(this.$route.query)[0]
-      }
-      return 'overview'
-    },
     parseMarkdown(md) {
       return parser(md)
     },
@@ -178,6 +161,12 @@ export default {
       } finally {
         this.flowRunNameLoading = false
       }
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.flowRun.skip = !entry.isIntersecting
+    },
+    handleRefetch() {
+      this.$apollo.queries.flowRun.refetch()
     }
   },
   apollo: {
@@ -219,6 +208,7 @@ export default {
 <template>
   <v-sheet
     v-if="error && !flowRun"
+    v-intersect="{ handler: onIntersect }"
     color="appBackground"
     class="position-relative"
   >
@@ -233,14 +223,12 @@ export default {
     <SubPageNav icon="pi-flow-run" page-type="Flow Run">
       <span
         slot="page-title"
-        style="
-        max-width: 100%;
-        min-width: 300px;
-        width: auto;
-        "
-        :style="[
-          { display: $vuetify.breakpoint.smAndDown ? 'inline' : 'block' }
-        ]"
+        class="minTitleWidth"
+        :style="{
+          display: $vuetify.breakpoint.smAndDown ? 'inline' : 'block',
+          width: flowRunNameLength + 'ch',
+          maxWidth: titleBarMaxWidth
+        }"
       >
         <EditableTextField
           :content="flowRun.name"
@@ -305,7 +293,6 @@ export default {
       v-model="tab"
       class="px-6 mx-auto tabs-border-bottom tab-full-height"
       :style="{
-        'max-width': tab == 'chart' ? 'auto' : '1440px',
         'padding-top': $vuetify.breakpoint.smOnly ? '80px' : '130px'
       }"
       mandatory
@@ -329,7 +316,11 @@ export default {
             :flow-run-states="flowRun.states"
           />
 
-          <DetailsTile slot="row-2-col-1-row-1-tile-1" :flow-run="flowRun" />
+          <DetailsTile
+            slot="row-2-col-1-row-1-tile-1"
+            :flow-run="flowRun"
+            @refetch="handleRefetch"
+          />
 
           <TaskRunHeartbeatTile
             slot="row-2-col-1-row-2-tile-1"
@@ -425,5 +416,9 @@ export default {
 .v-badge--inline .v-badge__badge,
 .v-badge--inline .v-badge__wrapper {
   margin: 5px;
+}
+
+.minTitleWidth {
+  min-width: 20vw;
 }
 </style>

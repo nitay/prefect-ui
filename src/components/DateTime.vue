@@ -1,7 +1,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import moment from 'moment-timezone'
-import range from 'lodash.range'
+import range from 'lodash/range'
 
 export default {
   props: {
@@ -24,6 +24,11 @@ export default {
       type: String,
       required: false,
       default: () => ''
+    },
+    allowPastDate: {
+      type: Boolean,
+      required: false,
+      default: () => false
     }
   },
   data() {
@@ -48,7 +53,7 @@ export default {
     ...mapGetters('user', ['timezone']),
     // The current date in YYYY-MM-DD format
     currentDate() {
-      if (!this.currentDateTimeMoment) return null
+      if (!this.currentDateTimeMoment || this.allowPastDate) return null
       return this.currentDateTimeMoment.format('YYYY-MM-DD')
     },
     // Selected date and time value, as derived from date & time inputs.
@@ -109,15 +114,18 @@ export default {
       this.$emit('input', val)
     },
     // Keep the constituent parts of DateTime in sync with the user-provided value prop.
-    value(val) {
-      if (val) {
-        const valueMoment = this.momentWithTimezone(val)
-        this.date = valueMoment.format('YYYY-MM-DD')
-        this.timeHr = valueMoment.format('hh')
-        this.timeMin = valueMoment.format('mm')
-        this.timeAmPm = valueMoment.format('A')
-      } else {
-        this.handleDateTimeClear()
+    value: {
+      immediate: true,
+      handler(val) {
+        if (val) {
+          const valueMoment = this.momentWithTimezone(val)
+          this.date = valueMoment.format('YYYY-MM-DD')
+          this.timeHr = valueMoment.format('hh')
+          this.timeMin = valueMoment.format('mm')
+          this.timeAmPm = valueMoment.format('A')
+        } else {
+          this.handleDateTimeClear()
+        }
       }
     }
   },
@@ -221,6 +229,7 @@ export default {
               <v-row>
                 <v-col cols="4">
                   <v-autocomplete
+                    data-public
                     v-model="timeHr"
                     hide-details
                     label="Hour"
@@ -231,6 +240,7 @@ export default {
                 </v-col>
                 <v-col cols="4">
                   <v-autocomplete
+                    data-public
                     v-model="timeMin"
                     hide-details
                     label="Minute"
@@ -241,6 +251,7 @@ export default {
                 </v-col>
                 <v-col cols="4">
                   <v-autocomplete
+                    data-public
                     v-model="timeAmPm"
                     hide-details
                     label="AM/PM"
@@ -267,7 +278,7 @@ export default {
                 <v-col cols="12" class="py-0">
                   <v-scroll-x-transition>
                     <v-alert
-                      v-if="timeInPast"
+                      v-if="!allowPastDate && timeInPast"
                       border="left"
                       colored-border
                       elevation="2"

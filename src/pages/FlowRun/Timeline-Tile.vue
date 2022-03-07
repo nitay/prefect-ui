@@ -290,10 +290,18 @@ export default {
         }
       })
     },
-    handleClick() {
-      // TODO: We want to add some click event to bars; it's possible we could use just a menu and then navigation
-      // to individual task runs from there, but for now the click event, similar to the hover,
-      // will return a list of all the task runs under the cursor at a given time.
+    handleClick(e) {
+      if (!e.id) return
+
+      const taskRun = this.items.find(item => e?.id == item.id)
+      if (!taskRun) return
+
+      this.$router.push({
+        name: 'task-run',
+        params: {
+          id: taskRun.data.id
+        }
+      })
     },
     handleHover(e) {
       this.hoveredTaskRuns = this.items.filter(item =>
@@ -305,6 +313,10 @@ export default {
         b.formattedTime = this.logTime(b.time)
       })
       this.hoveredBreakpoints = e?.breakpoints
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.taskRuns.skip = !entry.isIntersecting
+      this.$apollo.queries.mappedChildren.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -368,6 +380,7 @@ export default {
 
 <template>
   <v-card
+    v-intersect="{ handler: onIntersect }"
     class="px-3 pt-7 pb-2 mx-auto"
     style="
       max-height: 200px;"

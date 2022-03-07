@@ -7,6 +7,7 @@ import AgentFlowRunHistory from '@/pages/Agents/AgentFlowRunHistory'
 import AgentRunsInProgress from '@/pages/Dashboard/InProgress-Tile.vue'
 import SubmittableRuns from '@/pages/Agents/SubmittableRuns'
 import FlowRunTableTile from '@/pages/Agents/AgentFlowRunTable-Tile'
+import { pollsAgentsMixin } from '@/mixins/polling/pollsAgentsMixin'
 
 import { mapGetters, mapMutations, mapActions } from 'vuex'
 
@@ -21,6 +22,7 @@ export default {
     SubmittableRuns,
     FlowRunTableTile
   },
+  mixins: [pollsAgentsMixin],
   data() {
     return {
       tab: 'overview',
@@ -168,7 +170,6 @@ export default {
     <v-tabs-items
       v-model="tab"
       class="px-6 mx-auto tabs-border-bottom tab-full-height"
-      style="max-width: 1440px;"
       :style="{
         'padding-top': $vuetify.breakpoint.smOnly ? '30px' : '80px'
       }"

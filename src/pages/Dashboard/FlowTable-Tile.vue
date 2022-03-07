@@ -5,20 +5,20 @@ import ScheduleToggle from '@/components/ScheduleToggle'
 
 import { formatTime } from '@/mixins/formatTimeMixin'
 import { mapGetters } from 'vuex'
-import debounce from 'lodash.debounce'
+import debounce from 'lodash/debounce'
 
 const serverHeaders = [
   {
     text: 'Name',
     value: 'name',
-    width: '20%'
+    width: '30%'
   },
   {
     text: 'Schedule',
     value: 'schedule',
     sortable: false,
     align: 'center',
-    width: '20%'
+    width: '10%'
   },
   {
     text: 'Project',
@@ -44,7 +44,7 @@ const serverHeadersPost = [
     text: 'Run History',
     value: 'flow_runs',
     sortable: false,
-    width: '25%'
+    width: '20%'
   }
 ]
 
@@ -75,7 +75,7 @@ export default {
   data() {
     return {
       flows: [],
-      limit: 15,
+      limit: 30,
       loading: 0,
       page: 1,
       search:
@@ -91,7 +91,7 @@ export default {
   computed: {
     ...mapGetters('api', ['isCloud']),
     ...mapGetters('tenant', ['tenant']),
-    ...mapGetters('user', ['timezone']),
+    ...mapGetters('user', ['timezone', 'settings']),
     headers() {
       return [
         ...(this.showArchived
@@ -147,7 +147,24 @@ export default {
       this.$router.replace({
         query: query
       })
+    },
+    async limit(val) {
+      if (val && val !== this.settings?.flowTableTileLimit) {
+        try {
+          await this.$apollo.mutate({
+            mutation: require('@/graphql/User/update-user-settings.gql'),
+            variables: {
+              input: { flowTableTileLimit: val }
+            }
+          })
+        } catch (error) {
+          return
+        }
+      }
     }
+  },
+  mounted() {
+    this.limit = this.settings?.flowTableTileLimit || 30
   },
   methods: {
     async handleTableSearchInput(e) {
@@ -157,7 +174,11 @@ export default {
     debounceSearch: debounce(function(e) {
       this.loading--
       this.search = e
-    }, 500)
+    }, 500),
+    onIntersect([entry]) {
+      this.$apollo.queries.flows.skip = !entry.isIntersecting
+      this.$apollo.queries.flowCount.skip = !entry.isIntersecting
+    }
   },
   apollo: {
     flows: {
@@ -252,7 +273,7 @@ export default {
 </script>
 
 <template>
-  <v-card class="pa-2" tile>
+  <v-card v-intersect="{ handler: onIntersect }" class="pa-2" tile>
     <CardTitle title="Flows" icon="pi-flow">
       <div slot="action" class="flex align-center justify-end">
         <v-text-field
@@ -296,7 +317,7 @@ export default {
         :footer-props="{
           showFirstLastPage: true,
           firstIcon: 'first_page',
-          itemsPerPageOptions: [10, 15, 25, 50],
+          itemsPerPageOptions: [15, 30, 50],
           lastIcon: 'last_page',
           prevIcon: 'keyboard_arrow_left',
           nextIcon: 'keyboard_arrow_right'

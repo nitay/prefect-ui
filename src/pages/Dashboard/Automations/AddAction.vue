@@ -2,8 +2,8 @@
 import { actionTypes, jsonPlacehold } from '@/utils/automations'
 import { mapGetters } from 'vuex'
 import ListInput from '@/components/CustomInputs/ListInput'
-import JsonInput from '@/components/CustomInputs/JsonInput'
-import jsBeautify from 'js-beautify'
+import JsonInput from '@/components/CustomInputs/JsonInput2'
+import { formatJson, isValidJson } from '@/utils/json'
 
 export default {
   components: {
@@ -43,7 +43,6 @@ export default {
       accountSid: '',
       apiToken: '',
       jsonPayload: null,
-      validJson: true,
       routingKey: '',
       webhookURLString: null,
       severity: '',
@@ -137,13 +136,7 @@ export default {
     },
     disableNext() {
       if (this.step.name === 'openToConfig') {
-        if (
-          this.isPagerDuty &&
-          this.apiToken &&
-          this.routingKey &&
-          this.severity
-        )
-          return false
+        if (this.isPagerDuty && this.routingKey && this.severity) return false
         if (!this.actionConfigArray.length) return true
         else return false
       } else {
@@ -159,10 +152,7 @@ export default {
     allowSave() {
       const type = this.actionType.type
       const allow = this.isPagerDuty
-        ? !!this.actionType &&
-          !!this.apiToken &&
-          !!this.routingKey &&
-          !!this.severity
+        ? !!this.actionType && !!this.routingKey && !!this.severity
         : this.isTwilio
         ? !!this.actionConfigArray &&
           !!this.authToken &&
@@ -184,7 +174,7 @@ export default {
       get() {
         const whoTo = this.actionConfigArray.length
           ? this.actionConfigArray
-          : this.secretName || this.webhookURLString
+          : this.secretName || this.webhookURLString || this.apiToken
         return `${this.actionType.verb} ${whoTo}`
       },
       set(x) {
@@ -229,6 +219,9 @@ export default {
     },
     isMSTeams() {
       return this.actionType.type === 'MS_TEAMS'
+    },
+    validJson() {
+      return isValidJson(this.jsonPayload)
     }
     // needsNext() {
     //   if (
@@ -252,7 +245,7 @@ export default {
   methods: {
     jsonPlaceholder() {
       this.jsonPlacehold.message = this.messagePlaceholder
-      return jsBeautify(JSON.stringify(this.jsonPlacehold))
+      return formatJson(this.jsonPlacehold)
     },
     buttonColor(selectedStep) {
       return this.step.name === selectedStep ? 'codePink' : 'utilGrayDark'
@@ -271,9 +264,6 @@ export default {
         this.steps['openMessageText'].complete = true
       this.step = this.steps[selectedStep]
     },
-    handleJsonValidation(event) {
-      this.validJson = !event
-    },
     handleNext() {
       if (this.step.name === 'openMessageText') {
         this.steps['openMessageText'].complete = true
@@ -286,12 +276,7 @@ export default {
         } else {
           if (this.actionType.type === 'EMAIL' && this.actionConfigArray.length)
             this.steps['openToConfig'].complete = true
-          else if (
-            this.isPagerDuty &&
-            this.apiToken &&
-            this.routingKey &&
-            this.severity
-          ) {
+          else if (this.isPagerDuty && this.routingKey && this.severity) {
             this.steps['openToConfig'].complete = true
           }
           this.switchStep('addName')
@@ -369,7 +354,7 @@ export default {
             case 'PAGERDUTY':
               {
                 this.actionConfig = {
-                  api_token_secret: this.apiToken,
+                  api_token_secret: this.apiToken || null,
                   routing_key: this.routingKey,
                   severity: this.severity
                 }
@@ -660,14 +645,10 @@ export default {
           @keydown.enter="saveMessage"
         />
 
-        <JsonInput
+        <json-input
           v-else
           v-model="jsonPayload"
-          selected-type="json"
-          skip-required
-          add-corners
-          :placeholder-text="jsonPlaceholder()"
-          @invalid-secret="handleJsonValidation"
+          :placeholder="jsonPlaceholder()"
         />
       </div>
     </v-card-text>
@@ -701,35 +682,29 @@ export default {
       <div v-else-if="isPagerDuty">
         <span>
           Prefect Cloud will send a PagerDuty notification. Create your
-          <a
-            href="https://support.pagerduty.com/docs/generating-api-keys"
-            target="_blank"
-            >Pager Duty API token</a
-          >
-          in the Pager Duty app by visiting Configuration > API Access. To
-          securely store your API Token, you'll need to create a
-          <router-link :to="{ name: 'secrets' }">secret</router-link>. You'll
-          also need an Integration Key, which can be created by visiting the
-          Integrations tab of the Service Details page and setting up an
+          Integration Key by visiting the Integrations tab of the Service
+          Details page and setting up an
           <a
             href="https://support.pagerduty.com/docs/services-and-integrations"
             target="_blank"
             >Events API v2</a
           >
-          integration.
+          integration. Providing a PagerDuty API token is optional.
         </span>
         <v-row class="mt-2">
           <v-col cols="12" md="4">
             <v-select
+              data-public
               v-model="apiToken"
               :items="secretNames"
               outlined
-              label="PagerDuty API Token Secret"
+              label="PagerDuty API Token Secret (optional)"
               no-data-text="You will need to create a secret with your PagerDuty API Token"
             />
           </v-col>
           <v-col cols="12" md="4">
             <v-select
+              data-public
               v-model="severity"
               :items="severityLevels"
               outlined
@@ -771,10 +746,7 @@ export default {
       >
         <div v-if="actionType.type === 'WEBHOOK'">
           <span>
-            Prefect Cloud will send a message via the URL you provide. To
-            securely store your webhook URL, create a
-            <router-link :to="{ name: 'secrets' }"> Prefect secret</router-link
-            >.
+            Prefect Cloud will send a payload to the URL you provide.
           </span>
         </div>
         <div v-else-if="actionType.type === 'MS_TEAMS'">
@@ -832,6 +804,7 @@ export default {
       <v-row class="mt-4">
         <v-col cols="12" md="4">
           <v-select
+            data-public
             v-model="authToken"
             outlined
             :items="secretNames"

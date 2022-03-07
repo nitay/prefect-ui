@@ -58,7 +58,7 @@ export default {
         this.dialog = false
         await this.writeLogs()
         let taskStates = []
-        if (this.utilityDownstreamTasks.length) {
+        if (this.utilityDownstreamTasks?.length) {
           taskStates = this.utilityDownstreamTasks.map(task => {
             return {
               version: task.task.task_runs[0].version,
@@ -118,6 +118,9 @@ export default {
         }
       })
       return data?.write_run_logs?.success
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.utilityDownstreamTasks.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -137,7 +140,7 @@ export default {
 </script>
 
 <template>
-  <v-card tile>
+  <v-card v-intersect="{ handler: onIntersect }" tile>
     <v-card-title>
       Restart from failed?
     </v-card-title>

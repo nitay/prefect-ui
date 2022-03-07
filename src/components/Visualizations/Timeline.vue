@@ -1,8 +1,8 @@
 <script>
 import * as d3 from 'd3'
-import uniqueId from 'lodash.uniqueid'
-import throttle from 'lodash.throttle'
-import debounce from 'lodash.debounce'
+import uniqueId from 'lodash/uniqueId'
+import throttle from 'lodash/throttle'
+import debounce from 'lodash/debounce'
 import moment from '@/utils/moment'
 
 // TODO: Remove the workerize-loader package and adjust this worker to
@@ -344,7 +344,12 @@ export default {
     },
     click(e) {
       const context = this.canvas.node().getContext('2d')
-      let hoveredId
+      let hoveredId,
+        hovered = {
+          data: [],
+          x: e.offsetX,
+          y: this.height
+        }
       let x = (e.offsetX - this.transform.x) * (1 / this.transform.k)
       let y = e.offsetY * (1 / this.transform.k)
 
@@ -352,6 +357,9 @@ export default {
         const bar = this.bars[i]
         if (context.isPointInPath(bar.path2D, x, y)) {
           hoveredId = bar.id
+          hovered.data.push(bar)
+
+          this.canvas._groups[0][0].style.cursor = 'pointer'
           break
         }
       }
@@ -361,6 +369,7 @@ export default {
       }
 
       this.hoveredItemId = hoveredId
+      this.$emit('click', { id: hoveredId, ...hovered })
     },
     breaklineMouseout() {
       this.hoveredBreakpoints = null

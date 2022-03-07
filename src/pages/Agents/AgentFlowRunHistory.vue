@@ -29,20 +29,16 @@ export default {
       return 5000
     }
   },
-  watch: {
-    flowRuns() {
-      if (this.tooltip) {
-        let exists = this.flowRuns.find(f => f.id == this.tooltip.data.id)
-        this.tooltip = exists ? this.tooltip : null
-      }
-    }
-  },
   mounted() {
     if (this.pollInterval > 0) {
       this.$apollo.queries.flowRuns.startPolling(this.pollInterval)
     }
   },
-  methods: {},
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.flowRuns.skip = !entry.isIntersecting
+    }
+  },
   apollo: {
     flowRuns: {
       query: require('@/graphql/Agent/timeline-flow-runs.gql'),
@@ -60,6 +56,7 @@ export default {
 
 <template>
   <v-card
+    v-intersect="{ handler: onIntersect }"
     class="pa-0 pt-7 mb-4 appBackground"
     style="max-height: 114px;"
     tile

@@ -94,6 +94,9 @@ export default {
         height: '1rem',
         width: '1rem'
       }
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.flowRunsAggregate.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -141,6 +144,7 @@ export default {
 
 <template>
   <v-card
+    v-intersect="{ handler: onIntersect }"
     class="pa-2"
     tile
     :style="{
@@ -152,6 +156,7 @@ export default {
         <CardTitle title="Flow Runs Summary" icon="pi-flow-run">
           <div slot="action" v-on="on">
             <v-select
+              data-public
               v-if="!flow.archived"
               v-model="selectedDateFilter"
               class="time-interval-picker"

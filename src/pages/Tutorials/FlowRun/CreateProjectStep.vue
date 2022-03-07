@@ -92,6 +92,9 @@ export default {
         projectId: this.selectedProject.id,
         projectName: this.selectedProject.name
       })
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.projects.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -111,7 +114,7 @@ export default {
 </script>
 
 <template>
-  <v-container>
+  <v-container v-intersect="{ handler: onIntersect }">
     <v-row>
       <v-col cols="12" class="auto pa-0">
         <p>
@@ -132,6 +135,7 @@ export default {
       </v-col>
       <v-col cols="12" md="6" xl="4" class="auto pa-0">
         <v-select
+          data-public
           v-model="selectedProjectId"
           :items="projects"
           class="mb-5"

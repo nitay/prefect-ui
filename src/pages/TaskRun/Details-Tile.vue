@@ -2,7 +2,7 @@
 import CardTitle from '@/components/Card-Title'
 import DurationSpan from '@/components/DurationSpan'
 import { formatTime } from '@/mixins/formatTimeMixin'
-
+import { calculateDuration } from '@/utils/states'
 export default {
   filters: {
     typeClass: val => val.split('.').pop()
@@ -19,7 +19,9 @@ export default {
     }
   },
   data() {
-    return {}
+    return {
+      copiedText: {}
+    }
   },
   computed: {
     expectedRuns() {
@@ -35,6 +37,21 @@ export default {
         ]
       }
     }
+  },
+  methods: {
+    copyTextToClipboard(text) {
+      if (!text) return
+
+      this.copiedText = {}
+      this.copiedText[text] = true
+      navigator.clipboard.writeText(text)
+
+      setTimeout(() => {
+        this.copiedText = {}
+        this.copiedText[text] = false
+      }, 1000)
+    },
+    calculateDuration
   }
 }
 </script>
@@ -176,7 +193,13 @@ export default {
                 <DurationSpan
                   v-if="taskRun.start_time"
                   :start-time="taskRun.start_time"
-                  :end-time="taskRun.end_time"
+                  :end-time="
+                    calculateDuration(
+                      taskRun.start_time,
+                      taskRun.end_time,
+                      taskRun.state
+                    )
+                  "
                 />
                 <span v-else>
                   <v-skeleton-loader type="text"></v-skeleton-loader>
@@ -227,7 +250,28 @@ export default {
               <v-col cols="6" class="text-right font-weight-bold">
                 <v-tooltip top>
                   <template #activator="{ on }">
-                    <span v-on="on">
+                    <span
+                      class="cursor-pointer show-icon-hover-focus-only pa-2px"
+                      role="button"
+                      @click="
+                        copyTextToClipboard(
+                          taskRun.serialized_state._result.location
+                        )
+                      "
+                      v-on="on"
+                    >
+                      <v-icon
+                        v-if="taskRun.serialized_state._result.location"
+                        x-small
+                        class="mb-2px mr-2"
+                        tabindex="0"
+                      >
+                        {{
+                          copiedText[taskRun.serialized_state._result.location]
+                            ? 'check'
+                            : 'file_copy'
+                        }}
+                      </v-icon>
                       {{ taskRun.serialized_state._result.location || 'None' }}
                     </span>
                   </template>
@@ -282,6 +326,19 @@ a {
   &::before,
   &::after {
     content: '' !important;
+  }
+}
+
+.show-icon-hover-focus-only {
+  .v-icon {
+    visibility: hidden;
+  }
+
+  &:hover,
+  &:focus {
+    .v-icon {
+      visibility: visible;
+    }
   }
 }
 </style>

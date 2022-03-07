@@ -1,5 +1,5 @@
 <script>
-import debounce from 'lodash.throttle'
+import debounce from 'lodash/throttle'
 import moment from 'moment-timezone'
 import { mapGetters, mapMutations } from 'vuex'
 import NewProjectDialog from '@/pages/Dashboard/NewProject-Dialog'
@@ -16,7 +16,6 @@ export default {
   },
   data() {
     return {
-      activateTimeout: null,
       items: [],
       newProjectDialog: false,
       types: {
@@ -24,7 +23,10 @@ export default {
         projectActive: 'pi-project',
         flow: 'pi-flow',
         task: 'pi-task'
-      }
+      },
+      unwatchFlows: null,
+      unwatchProjects: null,
+      unsubscribeData: null
     }
   },
 
@@ -78,19 +80,21 @@ export default {
     }
   },
   watch: {
-    flows() {
-      this.updateItems()
-    },
-    isOpen(val) {
+    async isOpen(val) {
       if (val) {
-        clearTimeout(this.activateTimeout)
-        this.activateTimeout = setTimeout(() => {
-          this.$refs['drawer'].focus()
-        }, 250)
+        this.updateItems()
+
+        this.unwatchFlows = this.$watch('flows', this.updateItems)
+        this.unwatchProjects = this.$watch('projects', this.updateItems)
+        this.unsubscribeData = await this.$store.dispatch('polling/subscribe', [
+          'flows',
+          'projects'
+        ])
+      } else {
+        this.unwatchFlows()
+        this.unwatchProjects()
+        this.unsubscribeData()
       }
-    },
-    projects() {
-      this.updateItems()
     }
   },
   mounted() {
@@ -103,16 +107,23 @@ export default {
     // Removes the t search shortcut event listener when
     // the component is destroyed
     window.removeEventListener('keyup', this.handleKeyboardShortcut)
-
-    clearTimeout(this.activateTimeout)
   },
   methods: {
     ...mapMutations('sideNav', ['close', 'open']),
     ...mapMutations('data', ['addTasks']),
+    onIntersect([entry]) {
+      if (entry.isIntersecting) {
+        entry.target.focus()
+      }
+    },
     closeAll() {
       this.$refs['tree'].close()
     },
     handleKeyboardShortcut(e) {
+      if (e?.key === 'Escape' && this.isOpen) {
+        this.close()
+      }
+
       if (
         e?.key === 't' &&
         e?.srcElement?.tagName !== 'INPUT' &&
@@ -239,6 +250,7 @@ export default {
       class="drawer pb-1"
     >
       <div
+        v-if="model"
         class="d-flex flex-column"
         style="
         height: 100%;
@@ -264,7 +276,7 @@ export default {
         </div>
 
         <div
-          ref="drawer"
+          v-intersect="{ handler: onIntersect }"
           class="focusable tree-view flex-grow-1 flex-shrink-1"
           tabindex="-1"
         >

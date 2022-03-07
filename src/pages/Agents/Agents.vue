@@ -1,10 +1,11 @@
 <script>
-import uniq from 'lodash.uniq'
+import uniq from 'lodash/uniq'
 import { mapGetters, mapActions, mapMutations } from 'vuex'
+import { pollsAgentsMixin } from '@/mixins/polling/pollsAgentsMixin'
 import LogRocket from 'logrocket'
 import SubPageNav from '@/layouts/SubPageNav'
 import { formatTime } from '@/mixins/formatTimeMixin.js'
-import difference from 'lodash.difference'
+import difference from 'lodash/difference'
 
 import AgentTile from '@/pages/Agents/AgentTile'
 
@@ -15,7 +16,7 @@ export default {
     AgentTile,
     SubPageNav
   },
-  mixins: [formatTime],
+  mixins: [formatTime, pollsAgentsMixin],
   data() {
     return {
       cleanUpDialog: false,
@@ -305,6 +306,7 @@ export default {
           <v-card width="320">
             <v-card-text class="pb-6">
               <v-autocomplete
+                data-public
                 ref="agents"
                 v-model="labelInput"
                 :items="allLabels"

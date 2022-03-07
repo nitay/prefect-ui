@@ -1,11 +1,13 @@
 <script>
 import NewProjectDialog from '@/pages/Dashboard/NewProject-Dialog'
 import { mapGetters } from 'vuex'
+import { pollsProjectsMixin } from '@/mixins/polling/pollsProjectsMixin'
 
 export default {
   components: {
     NewProjectDialog
   },
+  mixins: [pollsProjectsMixin],
   data() {
     return {
       newProjectDialog: false,
@@ -64,29 +66,27 @@ export default {
         .catch(e => e)
       if (!val) this.projectSelect = { name: 'All Projects', id: null }
     },
-    newProjectDialog(val) {
-      if (!val) {
-        this.projectSelect =
-          this.$route.params.id === '' ? null : this.$route.params.id
-      }
-    },
-    $route(val) {
-      if (val.params && !('id' in val.params) && this.projectId !== null) {
+    '$route.params.id'(val) {
+      if (!val && this.projectId !== null) {
         this.projectSelect = null
         this.projectId = null
         this.$emit('project-select', null)
-      } else if (
-        val.params &&
-        'id' in val.params &&
-        this.projectId !== val.params.id
-      ) {
+      } else if (val && this.projectId !== val) {
         // This will ensure the normal emit and project id setting
         // happens in the watcher above
-        this.projectSelect = val.params.id
+        this.projectSelect = val
       }
     }
   },
   methods: {
+    handleProjectSelect(event) {
+      this.projectId = event
+      this.projectSelect = event
+      this.$emit('project-select', event)
+    },
+    handleClose() {
+      this.projectSelect = null
+    },
     projectSelectTitleClass(item) {
       return {
         'new-project': item.id == 'new_project',
@@ -101,6 +101,7 @@ export default {
 <template>
   <div>
     <v-autocomplete
+      data-public
       id="project-dropdown"
       v-model="projectSelect"
       class="project-selector"
@@ -133,7 +134,11 @@ export default {
       </template>
     </v-autocomplete>
 
-    <NewProjectDialog :show.sync="newProjectDialog" />
+    <NewProjectDialog
+      @project-select="handleProjectSelect"
+      @close="handleClose"
+      :show.sync="newProjectDialog"
+    />
   </div>
 </template>
 

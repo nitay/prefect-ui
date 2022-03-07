@@ -1,5 +1,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex'
+import { pollsProjectsMixin } from '@/mixins/polling/pollsProjectsMixin'
 import AddAction from '@/pages/Dashboard/Automations/AddAction'
 import CreateAgentConfigForm from '@/pages/Dashboard/Automations/CreateAgentConfigForm'
 import {
@@ -9,16 +10,23 @@ import {
 } from '@/utils/automations'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import UpgradeBadge from '@/components/UpgradeBadge'
+import DeleteAgentConfig from './DeleteAgentConfig.vue'
 
-const systemActions = ['CancelFlowRunAction', 'PauseScheduleAction']
+const systemActions = [
+  'CancelFlowRunAction',
+  'PauseScheduleAction',
+  'CreateFlowRunAction'
+]
 
 export default {
   components: {
     AddAction,
     CreateAgentConfigForm,
     ConfirmDialog,
-    UpgradeBadge
+    UpgradeBadge,
+    DeleteAgentConfig
   },
+  mixins: [pollsProjectsMixin],
   props: {
     hookDetail: {
       type: Object,
@@ -87,7 +95,10 @@ export default {
     //   )
     // },
     allFlows() {
-      return this.selectedFlows?.length === this.flows?.length
+      return (
+        this.selectedFlows?.length === this.flows?.length &&
+        this.flows?.length > 1
+      )
     },
     formHeight() {
       return this.$vuetuify?.breakpoint?.smAndUp ? '35vh' : '25vh'
@@ -119,75 +130,79 @@ export default {
       return 'has'
     },
     editedActions() {
-      // Most actions are independent and can be used across flows but PauseScheduleAction can take a flow group id so need to filter here
+      // Most actions are independent and can be used across flows but PauseScheduleAction and CreateScheduleAction can take a flow group id so need to filter here
       const actions = this.actions.filter(
         action =>
-          action.action_type !== 'PauseScheduleAction' ||
-          action?.action_config?.flow_group_id ===
-            this.selectedFlows[0]?.flow_group_id
+          (action.action_type !== 'PauseScheduleAction' ||
+            action?.action_config?.flow_group_id ===
+              this.selectedFlows[0]?.flow_group_id) &&
+          (action.action_type !== 'CreateFlowRunAction' ||
+            action?.action_config?.flow_group_id ===
+              this.selectedFlows[0]?.flow_group_id)
       )
-      return actions
-        ? this.agentOrFlow === 'agent'
-          ? actions.filter(
-              action =>
-                action.action_type !== 'CancelFlowRunAction' &&
-                action.action_type !== 'PauseScheduleAction'
-            )
-          : actions.find(
-              action => action.action_type === 'CancelFlowRunAction'
-            ) &&
-            actions.find(
-              action =>
-                action.action_type === 'PauseScheduleAction' &&
-                action.action_config.flow_group_id ===
-                  this.selectedFlows[0].flow_group_id
-            )
-          ? actions
-          : actions.find(action => action.action_type === 'PauseScheduleAction')
-          ? [
-              ...actions,
-              {
-                name: 'cancel run',
-                value: 'CANCEL_RUN',
-                action_type: 'CancelFlowRunAction'
-              }
-            ]
-          : actions.find(action => action.action_type === 'CancelFlowRunAction')
-          ? [
-              ...actions,
-              {
-                name: 'pause schedule',
-                value: 'PAUSE_SCHEDULE',
-                action_type: 'PauseScheduleAction'
-              }
-            ]
-          : [
-              ...actions,
-              {
-                name: 'pause schedule',
-                value: 'PAUSE_SCHEDULE',
-                action_type: 'PauseScheduleAction'
-              },
-              {
-                name: 'cancel run',
-                value: 'CANCEL_RUN',
-                action_type: 'CancelFlowRunAction'
-              }
-            ]
-        : [
-            {
-              name: 'cancel run',
-              value: 'CANCEL_RUN',
-              id: 1,
-              action_type: 'CancelFlowRunAction'
-            },
-            {
-              name: 'pause schedule',
-              value: 'PAUSE_SCHEDULE',
-              id: 2,
-              action_type: 'PauseScheduleAction'
-            }
-          ]
+
+      if (actions) {
+        if (this.agentOrFlow === 'agent') {
+          return actions.filter(
+            action => !systemActions.includes(action.action_type)
+          )
+        }
+        if (
+          !actions.find(action => action.action_type === 'CancelFlowRunAction')
+        ) {
+          actions.push({
+            name: 'cancel run',
+            value: 'CANCEL_RUN',
+            action_type: 'CancelFlowRunAction'
+          })
+        }
+        if (
+          !actions.find(
+            action =>
+              action.action_type === 'PauseScheduleAction' &&
+              action.action_config.flow_group_id ===
+                this.selectedFlows[0].flow_group_id
+          )
+        ) {
+          actions.push({
+            name: 'pause schedule',
+            value: 'PAUSE_SCHEDULE',
+            id: 2,
+            action_type: 'PauseScheduleAction'
+          })
+        }
+        if (
+          !actions.find(action => action.action_type === 'CreateFlowRunAction')
+        ) {
+          actions.push({
+            name: 'start a new run',
+            value: 'START_RUN',
+            id: 3,
+            action_type: 'CreateFlowRunAction'
+          })
+        }
+        return actions
+      }
+      return [
+        {
+          name: 'cancel run',
+          value: 'CANCEL_RUN',
+          id: 1,
+          action_type: 'CancelFlowRunAction'
+        },
+        {
+          name: 'pause schedule',
+          value: 'PAUSE_SCHEDULE',
+          id: 2,
+          action_type: 'PauseScheduleAction'
+        },
+        {
+          name: 'start new run',
+          value: 'START_RUN',
+          id: 3,
+          action_type: 'CreateFlowRunAction'
+        }
+      ]
     },
     customActions() {
       return this.editedActions.filter(
@@ -593,6 +608,17 @@ export default {
             name: 'pause the schedule'
           })
         }
+        if (action?.value === 'START_RUN') {
+          const startConfig = {
+            create_flow_run: {
+              flow_group_id: this.selectedFlows[0].flow_group_id
+            }
+          }
+          action = await this.createAction({
+            config: startConfig,
+            name: 'start a new run'
+          })
+        }
         if (flow) {
           if (this.includeTo) {
             const flowGroupIds = this.selectedFlows?.map(
@@ -709,6 +735,15 @@ export default {
           this.closeCard()
         }
       }
+    },
+    handleDeletedAgentConfig(event) {
+      this.$apollo.queries.agentConfigs.refetch()
+      if (this.selectedAgentConfig.id === event) {
+        this.selectedAgentConfig = null
+      }
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.flows.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -759,7 +794,11 @@ export default {
 </script>
 
 <template>
-  <v-card class="pb-4 px-4" elevation="4">
+  <v-card
+    v-intersect="{ handler: onIntersect }"
+    class="pb-4 px-4"
+    elevation="4"
+  >
     <v-card-text class="text-h5 font-weight-light pb-0 pt-4 px-0">
       <v-row no-gutters>
         <v-col cols="9" lg="10">
@@ -1028,21 +1067,35 @@ export default {
                   v-for="config in agentConfigs"
                   :key="config.id"
                   v-ripple
-                  class="d-inline-block chip-small pa-2 my-2 mr-4 cursor-pointer text-body-1"
+                  class="d-inline-block agent-chip pa-2 my-2 mr-4 cursor-pointer text-body-1"
                   :class="{
                     active:
                       selectedAgentConfig &&
-                      selectedAgentConfig.id === config.id,
-                    flash: animated
+                      selectedAgentConfig.id === config.id
                   }"
                   @click="selectAgentConfig(config)"
                 >
-                  <span v-if="config.name">{{ config.name }}</span>
-                  <span v-else class="text--disabled"
-                    >Unnamed agent config</span
-                  >
+                  <span>
+                    <span v-if="config.name">{{ config.name }}</span>
+                    <span v-else>{{ config.id }}</span>
+                  </span>
+                  <span>
+                    <DeleteAgentConfig
+                      :config="config"
+                      @refetch="handleDeletedAgentConfig"
+                    />
+                  </span>
                 </div>
               </div>
+            </v-col>
+            <v-col cols="12" class="mt-2">
+              <span class="text-subtitle-1 font-weight-light"
+                >To set up an agent automation you need to add the
+                agent-config-id flag at agent registration. If you attach the
+                same id to multiple agents,</span
+              ><span class="mb-2 text-subtitle-1 font-weight-medium">
+                Prefect will only notify you if all agents are unhealthy.</span
+              >
             </v-col>
           </v-row>
 
@@ -1485,6 +1538,16 @@ export default {
   &:hover,
   &:focus {
     background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+.agent-chip {
+  border-radius: 5px;
+  max-width: fit-content;
+  border: 1px solid var(--v-utilGrayLight-base);
+
+  &.active {
+    border: 2px solid;
+    border-color: var(--v-accentPink-base) !important;
   }
 }
 

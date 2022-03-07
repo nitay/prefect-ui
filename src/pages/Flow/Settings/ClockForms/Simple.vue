@@ -109,20 +109,20 @@ export default {
       this.intervalValue = this.value / 60000000
       return
     }
-
-    const [minute, hour, day, month, dayWeek] = this.value.split(' ')
+    const [minute, hour, day, month, dayWeek] = this.value
+      .replace(/\*\//g, '')
+      .split(' ')
 
     if (hour.includes('*/')) {
       this.minuteValue = parseInt(minute)
       this.interval = 'hour'
-      this.intervalValue = parseInt(hour.split('*/')[1])
+      this.intervalValue = parseInt(hour)
     }
 
     if (day.includes('*/')) {
       this.interval = 'day'
       this.hourValue = parseInt(hour)
-
-      this.intervalValue = parseInt(day.split('*/')[1])
+      this.intervalValue = parseInt(day)
     }
 
     if (dayWeek !== '*') {
@@ -186,6 +186,7 @@ export default {
       />
 
       <v-select
+        data-public
         v-model="interval"
         :items="intervalOptions"
         class="text-h5 ml-2"
@@ -204,6 +205,7 @@ export default {
     >
       <div>...on the</div>
       <v-select
+        data-public
         v-model="minuteValue"
         :items="minutes"
         class="text-h5 ml-2 mr-1"
@@ -221,6 +223,7 @@ export default {
     >
       <div>...at the</div>
       <v-select
+        data-public
         v-model="hourValue"
         :items="hours"
         class="text-h5 ml-2 mr-1"

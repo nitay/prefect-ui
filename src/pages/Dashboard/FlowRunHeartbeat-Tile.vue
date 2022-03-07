@@ -33,6 +33,11 @@ export default {
       }
     }
   },
+  methods: {
+    onIntersect([entry]) {
+      this.$apollo.queries.heartbeat.skip = !entry.isIntersecting
+    }
+  },
   apollo: {
     heartbeat: {
       query: require('@/graphql/Dashboard/heartbeat.gql'),
@@ -53,9 +58,15 @@ export default {
 </script>
 
 <template>
-  <v-card class="pa-2" style="height: 100%;" tile>
+  <v-card
+    v-intersect="{ handler: onIntersect }"
+    class="pa-2"
+    style="height: 100%;"
+    tile
+  >
     <CardTitle title="Activity" icon="show_chart">
       <v-select
+        data-public
         slot="action"
         v-model="state"
         class="state-interval-picker font-weight-regular"

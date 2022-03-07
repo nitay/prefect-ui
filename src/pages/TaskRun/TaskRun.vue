@@ -52,21 +52,23 @@ export default {
   data() {
     return {
       loading: 0,
-      tab: this.getTab(),
       taskRunNameLoading: false
     }
   },
   computed: {
     ...mapGetters('tenant', ['tenant']),
+    taskRunNameLength() {
+      return this.taskRun?.name?.length
+    },
     taskRunId() {
       return this.$route.params.id
     },
     // Is this the correct definition? Can a mapped task run have siblings and children?
     mappedParent() {
-      return this.taskRun?.task.mapped && this.taskRun?.map_index === -1
+      return this.taskRun?.map_index === -1
     },
     mappedChild() {
-      return this.taskRun?.task.mapped && this.taskRun?.map_index > -1
+      return this.taskRun?.map_index > -1
     },
     tabs() {
       return [
@@ -84,28 +86,38 @@ export default {
           name: 'Mapped Runs',
           target: 'mapped-runs',
           icon: 'device_hub',
-          badgeColor: 'primary',
-          badgeText: 'New!',
           hidden: !this.mappedParent && !this.mappedChild
         },
         {
           name: 'Artifacts',
           target: 'artifacts',
-          icon: 'fas fa-fingerprint',
-          badgeText: 'Beta',
-          cardText:
-            'The Artifacts API is a beta feature currently under development. Task mapping with artifacts may have unexpected results... for more information on artifacts, check out the',
-          cardLink:
-            'https://docs.prefect.io/api/latest/artifacts/artifacts.html#artifacts',
-          cardLinkText: 'Artifacts API Docs'
+          icon: 'fas fa-fingerprint'
         }
       ]
+    },
+    titleBarMaxWidth() {
+      if (this.$vuetify.breakpoint.lgAndUp) {
+        return '70vw'
+      } else if (this.$vuetify.breakpoint.mdAndDown) {
+        return '40vw'
+      }
+      return '30vw'
+    },
+    tab: {
+      get() {
+        const keys = Object.keys(this.$route.query ?? {})
+        if (keys.length > 0 && this.tabs?.find(tab => tab.target == keys[0])) {
+          return keys[0]
+        }
+
+        return 'overview'
+      },
+      set(value) {
+        this.$router.replace({ query: { [value]: null } })
+      }
     }
   },
   watch: {
-    $route() {
-      this.tab = this.getTab()
-    },
     taskRun(val, prevVal) {
       if (val === 'not-found') this.$router.push({ name: 'not-found' })
       if (!val || val?.id == prevVal?.id) return
@@ -123,12 +135,6 @@ export default {
   },
   methods: {
     ...mapActions('alert', ['setAlert']),
-    getTab() {
-      if (Object.keys(this.$route.query).length != 0) {
-        return Object.keys(this.$route.query)[0]
-      }
-      return 'overview'
-    },
     parseMarkdown(md) {
       return parser(md)
     },
@@ -171,6 +177,9 @@ export default {
       } finally {
         this.taskRunNameLoading = false
       }
+    },
+    onIntersect([entry]) {
+      this.$apollo.queries.taskRun.skip = !entry.isIntersecting
     }
   },
   apollo: {
@@ -188,36 +197,26 @@ export default {
       loadingKey: 'loading',
       pollInterval: 5000,
       update: data => data.task_run_by_pk || 'not-found'
-    },
-    parent: {
-      query: require('@/graphql/TaskRun/parent.gql'),
-      variables() {
-        return {
-          taskId: this.taskRun ? this.taskRun.task.id : null,
-          flowRunId: this.taskRun ? this.taskRun.flow_run.id : null
-        }
-      },
-      loadingKey: 'loading',
-      pollInterval: 5000,
-      update: data => (data.task_run ? data.task_run.length : null)
     }
   }
 }
 </script>
 
 <template>
-  <v-sheet v-if="taskRun" color="appBackground">
+  <v-sheet
+    v-if="taskRun"
+    v-intersect="{ handler: onIntersect }"
+    color="appBackground"
+  >
     <SubPageNav icon="pi-task-run" page-type="Task Run">
       <span
         slot="page-title"
-        style="
-          max-width: 100%;
-          min-width: 300px;
-          width: auto;
-          "
-        :style="[
-          { display: $vuetify.breakpoint.smAndDown ? 'inline' : 'block' }
-        ]"
+        class="minTitleWidth"
+        :style="{
+          display: $vuetify.breakpoint.smAndDown ? 'inline' : 'block',
+          width: taskRunNameLength + 'ch',
+          maxWidth: titleBarMaxWidth
+        }"
       >
         <EditableTextField
           :content="
@@ -276,7 +275,6 @@ export default {
     <v-tabs-items
       v-model="tab"
       class="px-6 mx-auto tabs-border-bottom tab-full-height"
-      style="max-width: 1440px;"
       :style="{
         'padding-top': $vuetify.breakpoint.smOnly ? '80px' : '130px'
       }"
@@ -387,5 +385,9 @@ export default {
 .v-badge--inline .v-badge__badge,
 .v-badge--inline .v-badge__wrapper {
   margin: 5px;
+}
+
+.minTitleWidth {
+  min-width: 20vw;
 }
 </style>

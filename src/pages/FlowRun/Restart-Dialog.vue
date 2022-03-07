@@ -18,7 +18,11 @@ export default {
   },
   data() {
     return {
-      error: false
+      error: false,
+      loading: false,
+      loadingKey: 0,
+      errorMessage:
+        'Sorry, we hit a problem trying to restart the run; please try again.'
     }
   },
   computed: {
@@ -26,6 +30,9 @@ export default {
     ...mapGetters('user', ['user']),
     restartMessage() {
       return `${this.user.username} restarted this flow run`
+    },
+    queryLoading() {
+      return this.loadingKey > 0
     },
     isEligibleToRestart() {
       return (
@@ -49,7 +56,7 @@ export default {
     },
     async restart() {
       try {
-        this.cancel()
+        this.loading = true
 
         this.writeLogs()
 
@@ -103,6 +110,9 @@ export default {
           })
 
           if (data?.set_flow_run_states) {
+            this.loading = false
+            this.cancel()
+            this.$emit('update')
             this.setAlert({
               alertShow: true,
               alertMessage: 'Flow run restarted.',
@@ -110,22 +120,26 @@ export default {
             })
           } else {
             this.error = true
+            this.errorMessage = 'There was an error with the API call'
           }
         } else {
           this.error = true
+          this.errorMessage = 'No eligible states to reset'
         }
       } catch (error) {
         this.error = true
+        this.errorMessage = `${error}`
         throw error
-      }
-
-      if (this.error === true) {
-        this.setAlert({
-          alertShow: true,
-          alertMessage:
-            'Sorry, we hit a problem trying to restart the run; please try again.',
-          alertType: 'error'
-        })
+      } finally {
+        if (this.error === true) {
+          this.cancel()
+          this.setAlert({
+            alertShow: true,
+            alertMessage: this.errorMessage,
+            alertType: 'error'
+          })
+        }
+        this.loading = false
       }
     },
     async writeLogs() {
@@ -153,6 +167,7 @@ export default {
           flowRunId: this.flowRun.id
         }
       },
+      loadingKey: 'loadingKey',
       skip() {
         return !this.failedTaskRuns
       },
@@ -163,10 +178,10 @@ export default {
 </script>
 
 <template>
-  <v-card tile>
+  <v-card tile :loading="queryLoading">
     <v-card-title> Restart? </v-card-title>
 
-    <v-card-text>
+    <v-card-text v-if="utilityDownstreamTasks">
       Click on confirm to restart this flow run. Restarting will restart all
       task runs in {{ reRunStates }} states and run any task runs in a Pending
       state. Task runs that rely on upstream results may require additional
@@ -177,10 +192,18 @@ export default {
         >in the Results docs</a
       >.
     </v-card-text>
-    <v-card-actions>
+    <v-card-text v-else>
+      Fetching downstream tasks...
+    </v-card-text>
+    <v-card-actions v-if="utilityDownstreamTasks">
       <v-spacer></v-spacer>
 
-      <v-btn :disabled="!isEligibleToRestart" color="primary" @click="restart">
+      <v-btn
+        :disabled="!isEligibleToRestart || loading"
+        color="primary"
+        :loading="loading"
+        @click="restart"
+      >
         Confirm
       </v-btn>
 

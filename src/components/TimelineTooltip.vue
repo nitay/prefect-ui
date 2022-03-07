@@ -7,7 +7,8 @@ export default {
   },
   props: {
     tooltip: { type: Object, required: true },
-    loading: { type: Boolean, required: false, default: false }
+    loading: { type: Boolean, required: false, default: false },
+    showProjectName: { type: Boolean, required: false, default: false }
   }
 }
 </script>
@@ -35,6 +36,20 @@ export default {
     </div>
 
     <div class="divider"></div>
+    <div
+      v-if="
+        props.showProjectName &&
+          !props.loading &&
+          props.tooltip.data.flow.project.name
+      "
+      class="text-subtitle-1"
+    >
+      Project:
+      <span class="font-weight-black">
+        {{ props.tooltip.data.flow.project.name }}
+      </span>
+    </div>
+
     <div v-if="!props.tooltip.limited_view">
       <div
         v-if="props.tooltip.data.state == 'Scheduled'"
@@ -60,7 +75,13 @@ export default {
         </span>
       </div>
 
-      <div v-if="props.tooltip.data.start_time" class="text-subtitle-1">
+      <div
+        v-if="
+          props.tooltip.data.start_time &&
+            (props.tooltip.data.end_time || !props.tooltip.data.finished)
+        "
+        class="text-subtitle-1"
+      >
         Duration:
         <component
           :is="$options.components.DurationSpan"
